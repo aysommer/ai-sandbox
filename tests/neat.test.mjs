@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createGenome, InnovationRegistry } from '../src/neat/genes.ts'
-import { addConnection, addNode, crossover, mutate, mutateWeights } from '../src/neat/evolution.ts'
-import { compileNetwork } from '../src/neat/network.ts'
-import { compatibilityDistance, groupSpecies } from '../src/neat/species.ts'
+import { GenomeFactory, InnovationRegistry } from '../src/neat/genes.ts'
+import { NeatEvolution } from '../src/neat/evolution.ts'
+import { NeuralNetwork } from '../src/neat/network.ts'
+import { Speciation } from '../src/neat/species.ts'
 
+const { createGenome } = GenomeFactory
+const { addConnection, addNode, crossover, mutate, mutateWeights } = NeatEvolution
+const { compileNetwork } = NeuralNetwork
+const { compatibilityDistance, groupSpecies } = Speciation
+
+/** Chooses the first candidate or the lowest random value. */
 const zero = () => 0
 
 test('the compiled network uses the bias and respects disabled connections', () => {
@@ -79,6 +85,7 @@ test('compatibility is symmetric and grouping separates distant genomes', () => 
 
 test('seeded mutations yield valid feed-forward networks over many generations', () => {
   let seed = 147
+  /** Advances the deterministic random stream for this test. */
   const random = () => {
     seed = (Math.imul(1664525, seed) + 1013904223) >>> 0
     return seed / 2 ** 32

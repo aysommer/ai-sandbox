@@ -18,11 +18,7 @@ export type Genome = Readonly<{
 
 export type Random = () => number
 
-export function randomWeight(random: Random) {
-  return random() * 2 - 1
-}
-
-// Historical markings are shared by every genome in one population.
+/** Assigns consistent historical markings within one population. */
 export class InnovationRegistry {
   readonly baseNodes: readonly NodeGene[]
   private nextNode: number
@@ -30,6 +26,7 @@ export class InnovationRegistry {
   private readonly connections = new Map<string, number>()
   private readonly splits = new Map<number, number>()
 
+  /** Reserves IDs for the shared input, bias and output nodes. */
   constructor(inputs: number, outputs: number) {
     if (!Number.isSafeInteger(inputs) || inputs < 1 ||
       !Number.isSafeInteger(outputs) || outputs < 1) {
@@ -42,6 +39,7 @@ export class InnovationRegistry {
     this.nextNode = this.baseNodes.length
   }
 
+  /** Returns the innovation ID for an edge, allocating it on first use. */
   connection(from: number, to: number) {
     const key = from + ':' + to
     const existing = this.connections.get(key)
@@ -51,6 +49,7 @@ export class InnovationRegistry {
     return innovation
   }
 
+  /** Reuses the same node and edge IDs for a repeated split. */
   split(gene: ConnectionGene) {
     let id = this.splits.get(gene.innovation)
     if (id === undefined) {
@@ -65,16 +64,26 @@ export class InnovationRegistry {
   }
 }
 
-export function createGenome(registry: InnovationRegistry, random: Random = Math.random): Genome {
-  const nodes = registry.baseNodes
-  const inputs = nodes.filter(node => node.kind === 'input' || node.kind === 'bias')
-  const outputs = nodes.filter(node => node.kind === 'output')
-  const connections = inputs.flatMap(source => outputs.map(target => ({
-    innovation: registry.connection(source.id, target.id),
-    from: source.id,
-    to: target.id,
-    weight: randomWeight(random),
-    enabled: true,
-  })))
-  return { nodes, connections }
+/** Creates initial genomes and samples their connection weights. */
+export class GenomeFactory {
+  /** Creates a fully connected genome with the registry’s shared base nodes. */
+  static createGenome(registry: InnovationRegistry, random: Random = Math.random): Genome {
+    const nodes = registry.baseNodes
+    const inputs = nodes.filter(node => node.kind === 'input' || node.kind === 'bias')
+    const outputs = nodes.filter(node => node.kind === 'output')
+    const connections = inputs.flatMap(source => outputs.map(target => ({
+      innovation: registry.connection(source.id, target.id),
+      from: source.id,
+      to: target.id,
+      weight: GenomeFactory.randomWeight(random),
+      enabled: true,
+    })))
+    return { nodes, connections }
+  }
+
+  /** Generates a connection weight between −1 and 1. */
+  /** Generates a connection weight between −1 and 1. */
+  static randomWeight(random: Random) {
+    return random() * 2 - 1
+  }
 }

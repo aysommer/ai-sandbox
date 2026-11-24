@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { runExperiment } from '../src/experiments.ts'
+import { WorldExperiment } from '../src/experiments.ts'
 import { World, tick } from '../src/simulation.ts'
 
 test('food supply variants start with the same map, food and founder genomes', () => {
@@ -9,9 +9,9 @@ test('food supply variants start with the same map, food and founder genomes', (
   assert.deepEqual(normal.food, scarce.food)
   assert.deepEqual(normal.obstacles, scarce.obstacles)
   assert.deepEqual(normal.agents.map(agent => agent.genome), scarce.agents.map(agent => agent.genome))
-  const baseline = runExperiment(267, 'normal')
-  assert.deepEqual(runExperiment(267, 'normal'), baseline)
-  assert.notDeepEqual(runExperiment(267, 'scarce'), baseline)
+  const baseline = WorldExperiment.runExperiment(267, 'normal')
+  assert.deepEqual(WorldExperiment.runExperiment(267, 'normal'), baseline)
+  assert.notDeepEqual(WorldExperiment.runExperiment(267, 'scarce'), baseline)
 })
 
 test('offspring inherit a modified genome and ancestry survives removal of dead agents', () => {

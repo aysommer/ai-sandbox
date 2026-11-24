@@ -1,4 +1,4 @@
-import { createGenome, type InnovationRegistry, type Random } from './neat/genes.ts'
+import { GenomeFactory, type InnovationRegistry, type Random } from './neat/genes.ts'
 
 export const actions = ['искать цель', 'уйти от угрозы', 'исследовать', 'размножиться'] as const
 export const inputs = ['Энергия', 'Близость цели', 'Близость угрозы', 'Хищник', 'Готовность к размножению'] as const
@@ -14,14 +14,18 @@ const initialWeights = [
 ]
 const biasWeights = [.25, .05, .15, -.4]
 
-export function founder(registry: InnovationRegistry, random: Random) {
-  const genome = createGenome(registry, random)
-  return {
-    nodes: genome.nodes,
-    connections: genome.connections.map(gene => {
-      const action = gene.to - inputCount - 1
-      const weight = gene.from === inputCount ? biasWeights[action] : initialWeights[gene.from][action]
-      return { ...gene, weight: weight + gene.weight * .12 }
-    }),
+/** Defines the initial network behavior for world inhabitants. */
+export class AgentBehavior {
+  /** Creates a viable founder genome with small seeded weight variations. */
+  static founder(registry: InnovationRegistry, random: Random) {
+    const genome = GenomeFactory.createGenome(registry, random)
+    return {
+      nodes: genome.nodes,
+      connections: genome.connections.map(gene => {
+        const action = gene.to - inputCount - 1
+        const weight = gene.from === inputCount ? biasWeights[action] : initialWeights[gene.from][action]
+        return { ...gene, weight: weight + gene.weight * .12 }
+      }),
+    }
   }
 }
