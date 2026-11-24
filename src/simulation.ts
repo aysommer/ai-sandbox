@@ -1,6 +1,6 @@
 import { actions, AgentBehavior, inputCount } from './behavior.ts'
 import { NeatEvolution } from './neat/evolution.ts'
-import { InnovationRegistry, type Genome } from './neat/genes.ts'
+import { InnovationRegistry, type Genome, type InnovationSnapshot } from './neat/genes.ts'
 import { NeuralNetwork } from './neat/network.ts'
 import { MutationDiff } from './neat/mutations.ts'
 import { Speciation } from './neat/species.ts'
@@ -33,7 +33,7 @@ export type Decision = {
   energyDelta: number
 }
 export type EventType = 'world' | 'birth' | 'food' | 'absorption' | 'death'
-type Report = (message: string, type: EventType, participants: readonly number[]) => void
+export type Report = (message: string, type: EventType, participants: readonly number[]) => void
 type Lineage = {
   id: number
   kind: Kind
@@ -45,6 +45,25 @@ type Lineage = {
 export type FoodSupply = 'normal' | 'scarce'
 export const tick = 1 / 30
 type Obstacle = Point & { width: number; height: number }
+
+export type AgentView = Omit<Agent, 'activate'>
+export type WorldView = {
+  seed: number
+  supply: FoodSupply
+  seconds: number
+  agents: AgentView[]
+  food: Point[]
+  obstacles: Obstacle[]
+  lineage: Map<number, Lineage>
+}
+export type WorldSnapshot = WorldView & {
+  nextId: number
+  environmentSeed: number
+  behaviorSeed: number
+  geneticsSeed: number
+  foodTimer: number
+  innovations: InnovationSnapshot
+}
 
 export const names = { forager: 'Собиратель', hunter: 'Хищник' }
 
@@ -79,10 +98,12 @@ export class World {
 
   private readonly report: Report
   readonly supply: FoodSupply
+  readonly seed: number
 
   /** Builds the initial map and founder population from the seed. */
   constructor(report: Report, seed = 267, supply: FoodSupply = 'normal') {
     this.report = report
+    this.seed = seed
     this.supply = supply
     this.environmentSeed = seed >>> 0
     this.behaviorSeed = (seed ^ 0x15b47) >>> 0
@@ -99,6 +120,43 @@ export class World {
     this.spawn({ x: 580, y: 380 }, 'forager')
     this.spawn({ x: 670, y: 180 }, 'hunter')
     for (let index = 0; index < 44; index++) this.growFood()
+  }
+
+  /** Restores a world and recompiles the network of each saved entity. */
+  static restore(report: Report, checkpoint: WorldSnapshot) {
+    const snapshot = structuredClone(checkpoint)
+    const world = new World(report, snapshot.seed, snapshot.supply)
+    world.agents = snapshot.agents.map(agent => ({ ...agent, activate: NeuralNetwork.compileNetwork(agent.genome) }))
+    world.food = snapshot.food
+    world.obstacles = snapshot.obstacles
+    world.seconds = snapshot.seconds
+    world.nextId = snapshot.nextId
+    world.environmentSeed = snapshot.environmentSeed
+    world.behaviorSeed = snapshot.behaviorSeed
+    world.geneticsSeed = snapshot.geneticsSeed
+    world.foodTimer = snapshot.foodTimer
+    world.lineage.clear()
+    for (const [id, record] of snapshot.lineage) world.lineage.set(id, record)
+    world.innovations.restore(snapshot.innovations)
+    return world
+  }
+
+  /** Returns a cloneable view for postMessage, omitting compiled functions. */
+  view(): WorldView {
+    return {
+      seed: this.seed, supply: this.supply, seconds: this.seconds,
+      agents: this.agents.map(({ activate, ...agent }) => agent),
+      food: this.food, obstacles: this.obstacles, lineage: this.lineage,
+    }
+  }
+
+  /** Captures the hidden counters needed to continue the exact same run. */
+  snapshot(): WorldSnapshot {
+    return structuredClone({
+      ...this.view(), nextId: this.nextId, foodTimer: this.foodTimer,
+      environmentSeed: this.environmentSeed, behaviorSeed: this.behaviorSeed,
+      geneticsSeed: this.geneticsSeed, innovations: this.innovations.snapshot(),
+    })
   }
 
   /** Advances an independent random stream for the environment, behavior or genetics. */

@@ -1,5 +1,7 @@
 import { World, tick, type FoodSupply } from './simulation.ts'
 
+export type GenerationMetrics = { born: number; alive: number; absorbed: number }
+
 export const experimentSeconds = 60
 
 /** Measures generation outcomes under fixed conditions. */
@@ -9,7 +11,7 @@ export class WorldExperiment {
     const world = new World(() => {}, seed, supply)
     for (let index = 0; index < experimentSeconds / tick; index++) world.step(tick)
     const living = new Set(world.agents.map(agent => agent.id))
-    const generations = new Map<number, { born: number; alive: number; absorbed: number }>()
+    const generations = new Map<number, GenerationMetrics>()
     for (const record of world.lineage.values()) {
       const row = generations.get(record.generation) ?? { born: 0, alive: 0, absorbed: 0 }
       row.born++

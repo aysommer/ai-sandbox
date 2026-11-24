@@ -1,4 +1,5 @@
-import { experimentSeconds, WorldExperiment } from '../experiments.ts'
+import { experimentSeconds } from '../experiments.ts'
+import type { WorkerUpdate } from '../runtime/messages.ts'
 
 /** Runs both food-supply scenarios and renders their generation metrics. */
 export class ExperimentPanel {
@@ -8,27 +9,38 @@ export class ExperimentPanel {
   private readonly rows = document.querySelector('#experiment-rows')!
 
   /** Connects the compare button to the current seed field. */
-  constructor(readSeed: () => number | undefined) {
+  constructor(readSeed: () => number | undefined, run: (seed: number) => void) {
     this.button.addEventListener('click', () => {
       const seed = readSeed()
-      if (seed !== undefined) this.compare(seed)
+      if (seed !== undefined) {
+        this.showProgress()
+        run(seed)
+      }
     })
   }
 
+  /** Enables comparison only after the worker is ready. */
+  enable() {
+    this.button.disabled = false
+  }
+
   /** Shows progress before running the two repeatable simulations. */
-  private compare(seed: number) {
+  private showProgress() {
     this.button.disabled = true
     this.section.hidden = false
     this.rows.replaceChildren()
     this.description.textContent = 'Выполняются два прогона…'
-    window.setTimeout(() => this.render(seed), 0)
   }
 
   /** Fills the comparison table and restores the compare button. */
-  private render(seed: number) {
+  render({ seed, results }: Extract<WorkerUpdate, { type: 'comparison' }>) {
     try {
-      for (const supply of ['normal', 'scarce'] as const) {
-        for (const [generation, metrics] of WorldExperiment.runExperiment(seed, supply)) {
+      if (!results) {
+        this.description.textContent = 'Не удалось сравнить условия'
+        return
+      }
+      for (const { supply, generations } of results) {
+        for (const [generation, metrics] of generations) {
           const row = document.createElement('tr')
           for (const value of [generation, supply === 'normal' ? 'Обычное' : 'Редкое', metrics.born, metrics.alive, metrics.absorbed]) {
             const cell = document.createElement('td')

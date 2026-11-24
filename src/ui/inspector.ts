@@ -1,5 +1,5 @@
 import { actions, inputs } from '../behavior.ts'
-import type { Agent } from '../simulation.ts'
+import type { AgentView } from '../simulation.ts'
 import type { Genome, NodeGene } from '../neat/genes.ts'
 
 /** Renders the selected entity’s network, decision and mutations. */
@@ -58,7 +58,7 @@ export class AgentInspector {
   private shownGenome: Genome | undefined
 
   /** Displays the active entity’s decision, genome and mutations. */
-  update(agent: Agent | undefined) {
+  update(agent: AgentView | undefined) {
     this.decision.hidden = this.genomePanel.hidden = !agent
     if (!agent) {
       this.shownGenome = undefined

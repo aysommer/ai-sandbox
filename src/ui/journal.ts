@@ -1,4 +1,4 @@
-import type { EventType } from '../simulation.ts'
+import type { JournalEntry } from '../runtime/messages.ts'
 
 /** Renders and filters the bounded world event log. */
 export class EventJournal {
@@ -8,23 +8,23 @@ export class EventJournal {
   private readonly eventAgent = document.querySelector<HTMLInputElement>('#event-agent')!
 
   /** Binds the console filter and clear controls. */
-  constructor() {
+  constructor(clear: () => void) {
     this.eventType.addEventListener('change', () => this.applyEventFilters())
     this.eventAgent.addEventListener('input', () => this.applyEventFilters())
-    document.querySelector('#clear')!.addEventListener('click', () => this.clear())
+    document.querySelector('#clear')!.addEventListener('click', clear)
   }
 
-  /** Removes entries while keeping the active filters. */
-  clear() {
-    this.events.replaceChildren()
+  /** Replaces the bounded journal after restore or a batch of worker events. */
+  replace(entries: readonly JournalEntry[]) {
+    this.events.replaceChildren(...entries.slice().reverse().map(entry => this.render(entry)))
     this.updateEmptyEvents()
   }
 
-  /** Adds a timestamped event, retaining the most recent 160 entries. */
-  log(message: string, type: EventType = 'world', participants: readonly number[] = []) {
+  /** Creates one filterable row with the original event timestamp. */
+  private render({ message, type, participants, timestamp }: JournalEntry) {
     const item = document.createElement('li')
     const time = document.createElement('time')
-    const now = new Date()
+    const now = new Date(timestamp)
     time.dateTime = now.toISOString()
     time.textContent = now.toLocaleTimeString('ru-RU')
     const text = document.createElement('span')
@@ -33,9 +33,7 @@ export class EventJournal {
     item.dataset.type = type
     item.dataset.participants = participants.join(' ')
     item.hidden = !this.matchesEvent(item)
-    this.events.prepend(item)
-    if (this.events.childElementCount > 160) this.events.lastElementChild?.remove()
-    this.updateEmptyEvents()
+    return item
   }
 
   /** Checks both the event category and the exact participant ID. */

@@ -1,4 +1,4 @@
-import { width, height, type Point, type World } from '../simulation.ts'
+import { width, height, type Point, type WorldView } from '../simulation.ts'
 
 /** Owns the canvas, coordinate conversion and zoom controls. */
 export class WorldMap {
@@ -56,7 +56,7 @@ export class WorldMap {
   }
 
   /** Paints a world frame and outlines the selected entity. */
-  draw(world: World, selected?: number) {
+  draw(world: WorldView, selected?: number) {
     const { width: pixelWidth, height: pixelHeight } = this.canvas.getBoundingClientRect()
     const dpr = window.devicePixelRatio || 1
     const backingWidth = Math.round(pixelWidth * dpr)

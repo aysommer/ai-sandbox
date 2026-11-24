@@ -1,4 +1,4 @@
-import { names, type Agent, type World } from '../simulation.ts'
+import { names, type AgentView, type WorldView } from '../simulation.ts'
 import { AgentInspector } from './inspector.ts'
 
 /** Keeps the entity picker, inspector and ancestry in sync with the world. */
@@ -16,7 +16,7 @@ export class SelectionPanel {
   }
 
   /** Refreshes the entity options and details for the current selection. */
-  update(world: World, agent: Agent | undefined) {
+  update(world: WorldView, agent: AgentView | undefined) {
     const ids = world.agents.map(agent => String(agent.id))
     const previous = Array.from(this.select.options).slice(1).map(option => option.value)
     if (ids.join() !== previous.join()) {
@@ -35,7 +35,7 @@ export class SelectionPanel {
   }
 
   /** Walks the parent graph once for each selected entity. */
-  private renderAncestry(world: World, selected: number | undefined) {
+  private renderAncestry(world: WorldView, selected: number | undefined) {
     this.shownAncestry = selected
     this.ancestry.hidden = selected === undefined
     this.ancestors.replaceChildren()

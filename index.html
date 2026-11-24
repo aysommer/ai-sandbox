@@ -19,9 +19,9 @@
           <p>Наблюдайте, как сущности выживают в меняющейся среде</p>
         </div>
         <div class="simulation-controls">
-          <span class="mode" id="status">Пауза</span>
-          <button type="button" class="btn btn-primary" id="run">Запустить</button>
-          <button type="button" class="btn btn-ghost" id="restart">Повторить старт</button>
+          <span class="mode" id="status">Загрузка…</span>
+          <button type="button" class="btn btn-primary" id="run" disabled>Запустить</button>
+          <button type="button" class="btn btn-ghost" id="restart" disabled>Повторить старт</button>
         </div>
       </div>
       <div class="dashboard">
@@ -31,7 +31,7 @@
           <input class="input w-full" type="number" id="seed" min="0" max="4294967295" step="1" value="267">
           <label for="supply">Пополнение пищи при старте</label>
           <select class="select w-full" id="supply"><option value="normal">Обычное</option><option value="scarce">Редкое</option></select>
-          <button class="btn btn-ghost" id="compare">Сравнить условия</button>
+          <button class="btn btn-ghost" id="compare" disabled>Сравнить условия</button>
           <div id="tools" role="group" aria-label="Инструменты карты">
             <button class="btn btn-ghost" data-tool="select" aria-pressed="true">Выбрать</button>
             <button class="btn btn-ghost" data-tool="forager" aria-pressed="false">Добавить собирателя</button>
@@ -61,6 +61,7 @@
             <span><i class="dot obstacle"></i>Препятствие</span>
           </div>
           <p class="world-stats" id="stats"></p>
+          <p class="world-stats" id="storage-status">Загрузка сохранения…</p>
           <section id="experiment" class="experiment" hidden aria-labelledby="experiment-title">
             <h3 id="experiment-title">Сравнение поколений</h3>
             <p id="experiment-description" role="status"></p>

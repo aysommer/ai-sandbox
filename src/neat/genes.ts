@@ -18,6 +18,13 @@ export type Genome = Readonly<{
 
 export type Random = () => number
 
+export type InnovationSnapshot = {
+  nextNode: number
+  nextInnovation: number
+  connections: [string, number][]
+  splits: [number, number][]
+}
+
 /** Assigns consistent historical markings within one population. */
 export class InnovationRegistry {
   readonly baseNodes: readonly NodeGene[]
@@ -37,6 +44,24 @@ export class InnovationRegistry {
       kind: id < inputs ? 'input' : id === inputs ? 'bias' : 'output',
     }))
     this.nextNode = this.baseNodes.length
+  }
+
+  /** Saves both counters and historical mappings for deterministic continuation. */
+  snapshot(): InnovationSnapshot {
+    return {
+      nextNode: this.nextNode, nextInnovation: this.nextInnovation,
+      connections: [...this.connections], splits: [...this.splits],
+    }
+  }
+
+  /** Restores historical mappings before the next mutation. */
+  restore(snapshot: InnovationSnapshot) {
+    this.nextNode = snapshot.nextNode
+    this.nextInnovation = snapshot.nextInnovation
+    this.connections.clear()
+    this.splits.clear()
+    for (const [key, id] of snapshot.connections) this.connections.set(key, id)
+    for (const [key, id] of snapshot.splits) this.splits.set(key, id)
   }
 
   /** Returns the innovation ID for an edge, allocating it on first use. */
@@ -81,7 +106,6 @@ export class GenomeFactory {
     return { nodes, connections }
   }
 
-  /** Generates a connection weight between −1 and 1. */
   /** Generates a connection weight between −1 and 1. */
   static randomWeight(random: Random) {
     return random() * 2 - 1

@@ -65,3 +65,24 @@ test('decisions expose actual network scores and outcomes, and events identify p
   assert.ok(observedMutation)
   assert.ok(events.some(event => event.type === 'birth' && event.participants.length >= 2))
 })
+
+test('a serialized checkpoint restores evolved genomes, genealogy and deterministic continuation', () => {
+  const uninterruptedEvents = []
+  const restoredEvents = []
+  const source = new World((...event) => uninterruptedEvents.push(event), 267, 'normal')
+  for (let step = 0; step < 600; step++) source.step(tick)
+  const snapshot = source.snapshot()
+  assert.ok(snapshot.lineage.size > 6)
+  assert.ok(snapshot.agents.some(agent => agent.generation > 1))
+  const copy = structuredClone(snapshot)
+  const restored = World.restore((...event) => restoredEvents.push(event), snapshot)
+  assert.deepEqual(restored.snapshot(), snapshot)
+  uninterruptedEvents.length = 0
+  for (let step = 0; step < 900; step++) {
+    source.step(tick)
+    restored.step(tick)
+  }
+  assert.deepEqual(restored.snapshot(), source.snapshot())
+  assert.deepEqual(restoredEvents, uninterruptedEvents)
+  assert.deepEqual(snapshot, copy)
+})
