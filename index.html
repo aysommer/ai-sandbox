@@ -16,14 +16,29 @@
       <div class="page-heading">
         <div>
           <h2>Песочница</h2>
-          <p>Среда для наблюдения за нейроэволюцией</p>
+          <p>Наблюдайте, как сущности выживают в меняющейся среде</p>
         </div>
-        <span class="mode"><span aria-hidden="true"></span>Демонстрация</span>
+        <div class="simulation-controls">
+          <span class="mode" id="status">Пауза</span>
+          <button type="button" class="btn btn-primary" id="run">Запустить</button>
+          <button type="button" class="btn btn-ghost" id="restart">Новый мир</button>
+        </div>
       </div>
       <div class="dashboard">
+        <section class="card surface settings tools" aria-labelledby="tools-title">
+          <h3 id="tools-title">Инструменты мира</h3>
+          <div id="tools" role="group" aria-label="Инструменты карты">
+            <button class="btn btn-ghost" data-tool="select" aria-pressed="true">Выбрать</button>
+            <button class="btn btn-ghost" data-tool="forager" aria-pressed="false">Добавить собирателя</button>
+            <button class="btn btn-ghost" data-tool="hunter" aria-pressed="false">Добавить хищника</button>
+            <button class="btn btn-ghost" data-tool="food" aria-pressed="false">Добавить пищу</button>
+            <button class="btn btn-ghost" data-tool="obstacle" aria-pressed="false">Добавить препятствие</button>
+          </div>
+          <button type="button" class="btn btn-ghost w-full" id="reset">Сбросить вид</button>
+        </section>
         <section class="card surface world" aria-labelledby="map-title">
           <div class="panel-header">
-            <div><h3 id="map-title">Карта мира</h3><p>Выберите сущность на карте</p></div>
+            <div><h3 id="map-title">Карта мира</h3><p id="map-help">Выберите сущность на карте</p></div>
             <div class="map-controls" aria-label="Управление картой">
               <button type="button" class="btn btn-ghost" id="zoom-out" aria-label="Уменьшить масштаб">−</button>
               <output id="zoom-value" aria-label="Масштаб">100%</output>
@@ -31,27 +46,29 @@
             </div>
           </div>
           <div class="map">
-            <canvas id="world" aria-label="Демонстрационная карта с шестью сущностями"></canvas>
-            <span class="map-label">ДЕМО-КАРТА</span>
+            <canvas id="world" aria-label="Карта симуляции"></canvas>
+
           </div>
           <div class="legend" aria-label="Легенда карты">
-            <span><i class="dot entity"></i>Сущность</span>
+            <span><i class="dot entity"></i>Собиратель</span>
+            <span><i class="dot hunter"></i>Хищник</span>
             <span><i class="dot food"></i>Пища</span>
             <span><i class="dot obstacle"></i>Препятствие</span>
           </div>
+          <p class="world-stats" id="stats"></p>
         </section>
-        <aside class="side" aria-label="Управление и консоль">
+        <aside class="side" aria-label="Сущность и консоль">
           <section class="card surface settings" aria-labelledby="controls-title">
-            <h3 id="controls-title">Управление</h3>
-            <label for="selected-agent">Сущность</label>
+            <h3 id="controls-title">Сущность</h3>
+            <label class="sr-only" for="selected-agent">Выбранная сущность</label>
             <select id="selected-agent" class="select select-bordered w-full">
               <option value="">Выберите сущность</option>
             </select>
-            <button type="button" class="btn btn-primary w-full" id="reset">Сбросить вид</button>
+            <p id="agent-details">Выберите сущность для просмотра её состояния.</p>
           </section>
           <section class="card surface console" aria-labelledby="console-title">
             <div class="panel-header">
-              <div><h3 id="console-title">Консоль</h3><p>События интерфейса</p></div>
+              <div><h3 id="console-title">Консоль</h3><p>События мира</p></div>
               <button type="button" class="btn btn-ghost" id="clear">Очистить</button>
             </div>
             <ol id="events" aria-label="Журнал событий" aria-live="polite" aria-relevant="additions"></ol>
