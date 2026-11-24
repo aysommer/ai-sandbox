@@ -1,5 +1,6 @@
 import './style.css'
-import { World, width, height, names, tick, type FoodSupply, type Point } from './simulation'
+import { World, width, height, names, tick, type EventType, type FoodSupply, type Point } from './simulation'
+import { updateInspector } from './inspector'
 import { experimentSeconds, runExperiment } from './experiments'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#world')!
@@ -7,6 +8,8 @@ const context = canvas.getContext('2d')!
 const select = document.querySelector<HTMLSelectElement>('#selected-agent')!
 const events = document.querySelector<HTMLOListElement>('#events')!
 const emptyEvents = document.querySelector<HTMLParagraphElement>('#empty-events')!
+const eventType = document.querySelector<HTMLSelectElement>('#event-type')!
+const eventAgent = document.querySelector<HTMLInputElement>('#event-agent')!
 const zoomDisplay = document.querySelector<HTMLOutputElement>('#zoom-value')!
 const zoomIn = document.querySelector<HTMLButtonElement>('#zoom-in')!
 const zoomOut = document.querySelector<HTMLButtonElement>('#zoom-out')!
@@ -43,7 +46,7 @@ let lastFrame = 0
 let elapsed = 0
 let frame = 0
 
-function log(message: string) {
+function log(message: string, type: EventType = 'world', participants: readonly number[] = []) {
   const item = document.createElement('li')
   const time = document.createElement('time')
   const now = new Date()
@@ -52,9 +55,29 @@ function log(message: string) {
   const text = document.createElement('span')
   text.textContent = message
   item.append(time, text)
+  item.dataset.type = type
+  item.dataset.participants = participants.join(' ')
+  item.hidden = !matchesEvent(item)
   events.prepend(item)
-  if (events.childElementCount > 80) events.lastElementChild?.remove()
-  emptyEvents.hidden = true
+  if (events.childElementCount > 160) events.lastElementChild?.remove()
+  updateEmptyEvents()
+}
+
+function matchesEvent(item: HTMLElement) {
+  const agent = eventAgent.value.trim().replace(/^#/, '')
+  return (!eventType.value || item.dataset.type === eventType.value) &&
+    (!agent || item.dataset.participants?.split(' ').includes(agent))
+}
+
+function updateEmptyEvents() {
+  const visible = !!events.querySelector('li:not([hidden])')
+  if (!visible) emptyEvents.textContent = events.childElementCount ? 'Нет событий по этому фильтру' : 'Журнал пуст'
+  emptyEvents.hidden = visible
+}
+
+function applyEventFilters() {
+  for (const item of events.querySelectorAll('li')) item.hidden = !matchesEvent(item)
+  updateEmptyEvents()
 }
 
 function view(pixelWidth: number, pixelHeight: number) {
@@ -130,6 +153,7 @@ function updateUI() {
   }
   const agent = world.agents.find(agent => agent.id === selected)
   selected = agent?.id
+  updateInspector(agent)
   const selection = agent ? String(agent.id) : ''
   if (select.value !== selection) select.value = selection
   const description = agent ? `${names[agent.kind]} #${agent.id} · энергия ${Math.ceil(agent.energy)}% · поколение ${agent.generation}`
@@ -210,7 +234,8 @@ canvas.addEventListener('click', event => {
   } else {
     const agent = world.spawn(point, tool)
     if (agent) selected = agent.id
-    log(agent ? `Добавлен ${names[tool].toLowerCase()} #${agent.id}` : 'Размещение здесь недоступно или достигнут лимит')
+    log(agent ? `Добавлен ${names[tool].toLowerCase()} #${agent.id}` : 'Размещение здесь недоступно или достигнут лимит',
+      'world', agent ? [agent.id] : [])
   }
   updateUI()
   draw()
@@ -237,9 +262,11 @@ document.querySelector('#restart')!.addEventListener('click', () => {
   events.replaceChildren()
   log(`Восстановлен старт мира · seed ${seed}`)
 })
+eventType.addEventListener('change', applyEventFilters)
+eventAgent.addEventListener('input', applyEventFilters)
 document.querySelector('#clear')!.addEventListener('click', () => {
   events.replaceChildren()
-  emptyEvents.hidden = false
+  updateEmptyEvents()
 })
 
 compare.addEventListener('click', () => {

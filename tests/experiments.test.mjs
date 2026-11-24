@@ -36,3 +36,32 @@ test('offspring inherit a modified genome and ancestry survives removal of dead 
   assert.ok(world.lineage.size > world.agents.length)
   assert.ok([...world.lineage.values()].some(record => record.absorbed > 0))
 })
+
+test('decisions expose actual network scores and outcomes, and events identify participants', () => {
+  const events = []
+  const world = new World((message, type, participants) => events.push({ message, type, participants }), 267)
+  let absorbed = false
+  let observedMutation = false
+  for (let step = 0; step < 1800; step++) {
+    world.step(tick)
+    for (const agent of world.agents) {
+      const decision = agent.decision
+      if (decision) {
+        assert.deepEqual(decision.scores, agent.activate(decision.inputs))
+        assert.ok(decision.available[decision.action])
+        assert.ok(decision.scores.every((score, index) => !decision.available[index] || score <= decision.scores[decision.action]))
+        if (decision.outcome.startsWith('Поглощена')) {
+          assert.equal(decision.action, 0)
+          assert.ok(decision.energyDelta >= 0)
+          assert.ok(events.some(event => event.type === 'absorption' &&
+            event.participants.length === 2 && event.participants[0] === agent.id))
+          absorbed = true
+        }
+      }
+      if (agent.mutations?.changes.length) observedMutation = true
+    }
+  }
+  assert.ok(absorbed)
+  assert.ok(observedMutation)
+  assert.ok(events.some(event => event.type === 'birth' && event.participants.length >= 2))
+})

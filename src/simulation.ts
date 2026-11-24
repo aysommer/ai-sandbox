@@ -2,6 +2,7 @@ import { actions, founder, inputCount } from './behavior.ts'
 import { crossover, mutate } from './neat/evolution.ts'
 import { InnovationRegistry, type Genome } from './neat/genes.ts'
 import { compileNetwork } from './neat/network.ts'
+import { describeMutations } from './neat/mutations.ts'
 import { compatibilityDistance } from './neat/species.ts'
 
 export const width = 800
@@ -19,8 +20,20 @@ export type Agent = Point & {
   cooldown: number
   genome: Genome
   activate: ReturnType<typeof compileNetwork>
-  action: number
+  decision?: Decision
+  mutations?: ReturnType<typeof describeMutations>
 }
+export type Decision = {
+  seconds: number
+  inputs: number[]
+  scores: number[]
+  available: boolean[]
+  action: number
+  outcome: string
+  energyDelta: number
+}
+export type EventType = 'world' | 'birth' | 'food' | 'absorption' | 'death'
+type Report = (message: string, type: EventType, participants: readonly number[]) => void
 type Lineage = {
   id: number
   kind: Kind
@@ -51,10 +64,10 @@ export class World {
   private geneticsSeed: number
   private foodTimer = 0
 
-  private readonly report: (message: string) => void
+  private readonly report: Report
   readonly supply: FoodSupply
 
-  constructor(report: (message: string) => void, seed = 267, supply: FoodSupply = 'normal') {
+  constructor(report: Report, seed = 267, supply: FoodSupply = 'normal') {
     this.report = report
     this.supply = supply
     this.environmentSeed = seed >>> 0
@@ -111,7 +124,8 @@ export class World {
     const agent: Agent = {
       ...point, id: this.nextId++, kind, radius, energy: parent ? 46 : 68,
       heading: this.random('behaviorSeed') * 2 * Math.PI, generation, cooldown: 3,
-      genome, activate: compileNetwork(genome), action: 2,
+      genome, activate: compileNetwork(genome),
+      mutations: inherited ? describeMutations(inherited, genome) : undefined,
     }
     const parents = parent ? (mate ? [parent.id, mate.id] : [parent.id]) : []
     for (const id of parents) this.lineage.get(id)!.births++
@@ -185,7 +199,7 @@ export class World {
       agent.energy -= dt * (hunts ? 2.25 : 1.45)
       agent.cooldown -= dt
       if (agent.energy <= 0) {
-        this.report(`#${agent.id} погиб от истощения`)
+        this.report(`#${agent.id} погиб от истощения`, 'death', [agent.id])
         continue
       }
       const threat = hunts ? undefined : this.nearest(agent, this.agents, 77,
@@ -196,32 +210,45 @@ export class World {
       const target = prey ?? meal
       const fertile = agent.energy >= 91 && agent.cooldown <= 0
       const proximity = (point: Point | undefined, range: number) => point ? 1 - distance(agent, point) / range : 0
-      const scores = agent.activate([
+      const inputs = [
         agent.energy / 100, proximity(target, hunts ? 235 : 140),
         proximity(threat, 77), Number(hunts), Number(fertile),
-      ])
+      ]
+      const scores = agent.activate(inputs)
       const available = [!!target, !!threat, true, fertile]
-      agent.action = available.reduce((best, allowed, index) =>
+      const action = available.reduce((best, allowed, index) =>
         allowed && scores[index] > scores[best] ? index : best, 2)
-      const heading = agent.action === 1 && threat ? Math.atan2(agent.y - threat.y, agent.x - threat.x)
-        : agent.action === 0 && target ? Math.atan2(target.y - agent.y, target.x - agent.x)
+      const energyBeforeAction = agent.energy
+      const startX = agent.x
+      const startY = agent.y
+      const heading = action === 1 && threat ? Math.atan2(agent.y - threat.y, agent.x - threat.x)
+        : action === 0 && target ? Math.atan2(target.y - agent.y, target.x - agent.x)
         : agent.heading + (this.random('behaviorSeed') - .5) * .5
-      if (agent.action !== 3) this.move(agent, heading, hunts ? 72 : agent.action === 1 ? 67 : 50, dt)
+      if (action !== 3) this.move(agent, heading, hunts ? 72 : action === 1 ? 67 : 50, dt)
 
-      if (agent.action === 0 && prey && distance(agent, prey) <= agent.radius + prey.radius) {
+      const moved = agent.x !== startX || agent.y !== startY
+      let outcome = action === 3 ? 'Рядом нет места для потомка или достигнут лимит популяции'
+        : !moved ? 'Движение заблокировано'
+        : action === 0 ? 'Движение к цели · цель ещё не достигнута'
+        : action === 1 ? 'Сущность отступила' : 'Сущность обследовала местность'
+
+      if (action === 0 && prey && distance(agent, prey) <= agent.radius + prey.radius) {
         prey.energy = 0
         this.lineage.get(agent.id)!.absorbed++
         const radius = Math.min(20, agent.radius + .8)
         if (this.free(agent, radius)) agent.radius = radius
         agent.energy = Math.min(100, agent.energy + 47)
-        this.report(`#${agent.id} поглотил #${prey.id}`)
+        outcome = `Поглощена сущность #${prey.id}`
+        this.report(`#${agent.id} поглотил #${prey.id}`, 'absorption', [agent.id, prey.id])
       }
-      if (agent.action === 0 && meal && distance(agent, meal) <= agent.radius + 4) {
+      if (action === 0 && meal && distance(agent, meal) <= agent.radius + 4) {
         this.food.splice(this.food.indexOf(meal), 1)
         agent.energy = Math.min(100, agent.energy + 23)
+        outcome = 'Пища съедена'
+        this.report(`#${agent.id} нашёл пищу`, 'food', [agent.id])
       }
 
-      if (agent.action === 3) {
+      if (action === 3) {
         const offset = agent.radius + (hunts ? 13 : 9) + 4
         for (let direction = 0; direction < 2 * Math.PI; direction += Math.PI / 4) {
           const child = this.spawn({
@@ -231,10 +258,13 @@ export class World {
           if (!child) continue
           agent.energy -= 46
           agent.cooldown = 6
-          this.report(`#${agent.id} оставил потомка #${child.id} · поколение ${child.generation}`)
+          outcome = `Появился потомок #${child.id}`
+          this.report(`#${agent.id} оставил потомка #${child.id} · поколение ${child.generation}`,
+            'birth', [...this.lineage.get(child.id)!.parents, child.id])
           break
         }
       }
+      agent.decision = { seconds: this.seconds, inputs, scores, available, action, outcome, energyDelta: agent.energy - energyBeforeAction }
     }
     this.agents = this.agents.filter(agent => agent.energy > 0)
   }

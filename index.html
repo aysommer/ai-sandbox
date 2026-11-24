@@ -80,6 +80,25 @@
               <option value="">Выберите сущность</option>
             </select>
             <p id="agent-details">Выберите сущность для просмотра её состояния.</p>
+            <details id="decision" open hidden>
+              <summary>Последнее решение</summary>
+              <p id="decision-result"></p>
+              <div id="decision-data" hidden>
+                <h4>Входные сигналы</h4>
+                <dl id="decision-inputs" class="inspector-values"></dl>
+                <h4>Оценки действий</h4>
+                <dl id="decision-scores" class="inspector-values"></dl>
+              </div>
+            </details>
+            <details id="genome" hidden>
+              <summary>Геном и мутации</summary>
+              <h4>Узлы</h4>
+              <ul id="genome-nodes" class="inspector-list"></ul>
+              <h4>Связи</h4>
+              <ul id="genome-edges" class="inspector-list"></ul>
+              <h4>Мутации при рождении</h4>
+              <ul id="mutations" class="inspector-list"></ul>
+            </details>
             <details id="ancestry" hidden>
               <summary>Родословная</summary>
               <ul id="ancestors"></ul>
@@ -89,6 +108,19 @@
             <div class="panel-header">
               <div><h3 id="console-title">Консоль</h3><p>События мира</p></div>
               <button type="button" class="btn btn-ghost" id="clear">Очистить</button>
+            </div>
+            <div class="event-filters">
+              <label for="event-type">Тип события</label>
+              <select class="select w-full" id="event-type">
+                <option value="">Все события</option>
+                <option value="world">Мир</option>
+                <option value="birth">Рождения</option>
+                <option value="food">Питание</option>
+                <option value="absorption">Поглощения</option>
+                <option value="death">Истощение</option>
+              </select>
+              <label for="event-agent">ID сущности</label>
+              <input class="input w-full" id="event-agent" inputmode="numeric" placeholder="Например, 6">
             </div>
             <ol id="events" aria-label="Журнал событий" aria-live="polite" aria-relevant="additions"></ol>
             <p id="empty-events" hidden>Журнал пуст</p>

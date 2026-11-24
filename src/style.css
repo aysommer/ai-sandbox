@@ -106,3 +106,13 @@ body { background: #f2f5fa; }
 #ancestry summary { cursor: pointer; font-weight: 600; }
 #ancestors { max-height: 12rem; overflow: auto; padding-top: .4rem; }
 #ancestors li { padding: .25rem 0; }
+
+#decision[hidden], #decision-data[hidden], #genome[hidden], #events li[hidden] { display: none; }
+#decision summary, #genome summary { cursor: pointer; font-weight: 600; }
+#decision h4, #genome h4 { margin-top: .75rem; font-size: .875rem; font-weight: 650; }
+#decision-result { margin-top: .5rem; font-size: .875rem; color: #363e54; }
+.inspector-values { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3rem .6rem; font-size: .875rem; margin-top: .35rem; }
+.inspector-values dd { text-align: right; color: #424d65; font-variant-numeric: tabular-nums; }
+.inspector-list { max-height: 10rem; overflow: auto; margin-top: .35rem; font-size: .875rem; color: #424d65; }
+.inspector-list li { padding-block: .15rem; }
+.event-filters { display: grid; gap: .35rem; margin: 0 1.2rem .8rem; font-size: .875rem; }

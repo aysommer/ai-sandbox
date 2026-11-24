@@ -1,7 +1,8 @@
 import { createGenome, type InnovationRegistry, type Random } from './neat/genes.ts'
 
 export const actions = ['искать цель', 'уйти от угрозы', 'исследовать', 'размножиться'] as const
-export const inputCount = 5
+export const inputs = ['Энергия', 'Близость цели', 'Близость угрозы', 'Хищник', 'Готовность к размножению'] as const
+export const inputCount = inputs.length
 
 // Seed the population with viable behavior and small individual differences.
 const initialWeights = [
