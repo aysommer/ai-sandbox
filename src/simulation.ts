@@ -1,3 +1,9 @@
+import { actions, founder, inputCount } from './behavior.ts'
+import { crossover, mutate } from './neat/evolution.ts'
+import { InnovationRegistry, type Genome } from './neat/genes.ts'
+import { compileNetwork } from './neat/network.ts'
+import { compatibilityDistance } from './neat/species.ts'
+
 export const width = 800
 export const height = 500
 
@@ -11,7 +17,20 @@ export type Agent = Point & {
   heading: number
   generation: number
   cooldown: number
+  genome: Genome
+  activate: ReturnType<typeof compileNetwork>
+  action: number
 }
+type Lineage = {
+  id: number
+  kind: Kind
+  generation: number
+  parents: number[]
+  births: number
+  absorbed: number
+}
+export type FoodSupply = 'normal' | 'scarce'
+export const tick = 1 / 30
 type Obstacle = Point & { width: number; height: number }
 
 export const names = { forager: 'Собиратель', hunter: 'Хищник' }
@@ -25,13 +44,22 @@ export class World {
   obstacles: Obstacle[] = []
   seconds = 0
   private nextId = 1
-  private seed = 267
+  readonly lineage = new Map<number, Lineage>()
+  private readonly innovations = new InnovationRegistry(inputCount, actions.length)
+  private environmentSeed: number
+  private behaviorSeed: number
+  private geneticsSeed: number
   private foodTimer = 0
 
   private readonly report: (message: string) => void
+  readonly supply: FoodSupply
 
-  constructor(report: (message: string) => void) {
+  constructor(report: (message: string) => void, seed = 267, supply: FoodSupply = 'normal') {
     this.report = report
+    this.supply = supply
+    this.environmentSeed = seed >>> 0
+    this.behaviorSeed = (seed ^ 0x15b47) >>> 0
+    this.geneticsSeed = (seed ^ 0x13e78) >>> 0
     this.obstacles = [
       { x: 185, y: 245, width: 90, height: 25 },
       { x: 440, y: 275, width: 34, height: 105 },
@@ -46,9 +74,9 @@ export class World {
     for (let index = 0; index < 44; index++) this.growFood()
   }
 
-  private random() {
-    this.seed = (Math.imul(1664525, this.seed) + 1013904223) >>> 0
-    return this.seed / 2 ** 32
+  private random(stream: 'environmentSeed' | 'behaviorSeed' | 'geneticsSeed') {
+    this[stream] = (Math.imul(1664525, this[stream]) + 1013904223) >>> 0
+    return this[stream] / 2 ** 32
   }
 
   private free(point: Point, radius: number) {
@@ -60,14 +88,34 @@ export class World {
       ) > radius)
   }
 
-  spawn(point: Point, kind: Kind, generation = 1) {
+  spawn(point: Point, kind: Kind, parent?: Agent) {
     const radius = kind === 'hunter' ? 13 : 9
     if (this.agents.length >= 120 || !this.free(point, radius) ||
       this.agents.some(agent => distance(agent, point) < agent.radius + radius)) return
-    const agent: Agent = {
-      ...point, id: this.nextId++, kind, radius, energy: generation === 1 ? 68 : 46,
-      heading: this.random() * 2 * Math.PI, generation, cooldown: 3,
+    const random = () => this.random('geneticsSeed')
+    const mate = parent && random() < .3 ? this.nearest(parent, this.agents, 90, candidate =>
+      candidate !== parent && candidate.kind === parent.kind && candidate.energy >= 55 &&
+      compatibilityDistance(parent.genome, candidate.genome) < 3,
+    ) : undefined
+    const fitness = (agent: Agent) => {
+      const history = this.lineage.get(agent.id)!
+      return agent.energy / 100 + history.births + history.absorbed
     }
+    const inherited = parent && mate ? crossover(
+      { genome: parent.genome, fitness: fitness(parent) },
+      { genome: mate.genome, fitness: fitness(mate) },
+      random,
+    ) : parent?.genome
+    const genome = inherited ? mutate(inherited, this.innovations, random) : founder(this.innovations, random)
+    const generation = parent ? Math.max(parent.generation, mate?.generation ?? 0) + 1 : 1
+    const agent: Agent = {
+      ...point, id: this.nextId++, kind, radius, energy: parent ? 46 : 68,
+      heading: this.random('behaviorSeed') * 2 * Math.PI, generation, cooldown: 3,
+      genome, activate: compileNetwork(genome), action: 2,
+    }
+    const parents = parent ? (mate ? [parent.id, mate.id] : [parent.id]) : []
+    for (const id of parents) this.lineage.get(id)!.births++
+    this.lineage.set(agent.id, { id: agent.id, kind, generation, parents, births: 0, absorbed: 0 })
     this.agents.push(agent)
     return agent
   }
@@ -97,7 +145,7 @@ export class World {
   }
 
   private growFood() {
-    this.addFood({ x: 20 + this.random() * (width - 40), y: 20 + this.random() * (height - 40) })
+    this.addFood({ x: 20 + this.random('environmentSeed') * (width - 40), y: 20 + this.random('environmentSeed') * (height - 40) })
   }
 
   private nearest<T extends Point>(origin: Point, items: T[], range: number, accepts: (item: T) => boolean) {
@@ -125,8 +173,9 @@ export class World {
   step(dt: number) {
     this.seconds += dt
     this.foodTimer += dt
-    if (this.foodTimer >= .36) {
-      this.foodTimer -= .36
+    const growthInterval = this.supply === 'scarce' ? 1.8 : .36
+    if (this.foodTimer >= growthInterval) {
+      this.foodTimer -= growthInterval
       if (this.food.length < 80) this.growFood()
     }
 
@@ -145,30 +194,40 @@ export class World {
         item => item.kind === 'forager' && item.energy > 0) : undefined
       const meal = hunts ? undefined : this.nearest(agent, this.food, 140, () => true)
       const target = prey ?? meal
-      const heading = threat ? Math.atan2(agent.y - threat.y, agent.x - threat.x)
-        : target ? Math.atan2(target.y - agent.y, target.x - agent.x)
-        : agent.heading + (this.random() - .5) * .5
-      this.move(agent, heading, hunts ? 72 : threat ? 67 : 50, dt)
+      const fertile = agent.energy >= 91 && agent.cooldown <= 0
+      const proximity = (point: Point | undefined, range: number) => point ? 1 - distance(agent, point) / range : 0
+      const scores = agent.activate([
+        agent.energy / 100, proximity(target, hunts ? 235 : 140),
+        proximity(threat, 77), Number(hunts), Number(fertile),
+      ])
+      const available = [!!target, !!threat, true, fertile]
+      agent.action = available.reduce((best, allowed, index) =>
+        allowed && scores[index] > scores[best] ? index : best, 2)
+      const heading = agent.action === 1 && threat ? Math.atan2(agent.y - threat.y, agent.x - threat.x)
+        : agent.action === 0 && target ? Math.atan2(target.y - agent.y, target.x - agent.x)
+        : agent.heading + (this.random('behaviorSeed') - .5) * .5
+      if (agent.action !== 3) this.move(agent, heading, hunts ? 72 : agent.action === 1 ? 67 : 50, dt)
 
-      if (prey && distance(agent, prey) <= agent.radius + prey.radius) {
+      if (agent.action === 0 && prey && distance(agent, prey) <= agent.radius + prey.radius) {
         prey.energy = 0
+        this.lineage.get(agent.id)!.absorbed++
         const radius = Math.min(20, agent.radius + .8)
         if (this.free(agent, radius)) agent.radius = radius
         agent.energy = Math.min(100, agent.energy + 47)
         this.report(`#${agent.id} поглотил #${prey.id}`)
       }
-      if (meal && distance(agent, meal) <= agent.radius + 4) {
+      if (agent.action === 0 && meal && distance(agent, meal) <= agent.radius + 4) {
         this.food.splice(this.food.indexOf(meal), 1)
         agent.energy = Math.min(100, agent.energy + 23)
       }
 
-      if (agent.energy >= 91 && agent.cooldown <= 0) {
+      if (agent.action === 3) {
         const offset = agent.radius + (hunts ? 13 : 9) + 4
         for (let direction = 0; direction < 2 * Math.PI; direction += Math.PI / 4) {
           const child = this.spawn({
             x: agent.x + Math.cos(direction) * offset,
             y: agent.y + Math.sin(direction) * offset,
-          }, agent.kind, agent.generation + 1)
+          }, agent.kind, agent)
           if (!child) continue
           agent.energy -= 46
           agent.cooldown = 6

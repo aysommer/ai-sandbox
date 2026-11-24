@@ -21,12 +21,17 @@
         <div class="simulation-controls">
           <span class="mode" id="status">Пауза</span>
           <button type="button" class="btn btn-primary" id="run">Запустить</button>
-          <button type="button" class="btn btn-ghost" id="restart">Новый мир</button>
+          <button type="button" class="btn btn-ghost" id="restart">Повторить старт</button>
         </div>
       </div>
       <div class="dashboard">
         <section class="card surface settings tools" aria-labelledby="tools-title">
           <h3 id="tools-title">Инструменты мира</h3>
+          <label for="seed">Seed мира</label>
+          <input class="input w-full" type="number" id="seed" min="0" max="4294967295" step="1" value="267">
+          <label for="supply">Пополнение пищи при старте</label>
+          <select class="select w-full" id="supply"><option value="normal">Обычное</option><option value="scarce">Редкое</option></select>
+          <button class="btn btn-ghost" id="compare">Сравнить условия</button>
           <div id="tools" role="group" aria-label="Инструменты карты">
             <button class="btn btn-ghost" data-tool="select" aria-pressed="true">Выбрать</button>
             <button class="btn btn-ghost" data-tool="forager" aria-pressed="false">Добавить собирателя</button>
@@ -56,6 +61,16 @@
             <span><i class="dot obstacle"></i>Препятствие</span>
           </div>
           <p class="world-stats" id="stats"></p>
+          <section id="experiment" class="experiment" hidden aria-labelledby="experiment-title">
+            <h3 id="experiment-title">Сравнение поколений</h3>
+            <p id="experiment-description" role="status"></p>
+            <div class="overflow-x-auto">
+              <table class="table table-sm">
+                <thead><tr><th>Поколение</th><th>Пополнение пищи</th><th>Появилось</th><th>Выжило</th><th>Поглощений</th></tr></thead>
+                <tbody id="experiment-rows"></tbody>
+              </table>
+            </div>
+          </section>
         </section>
         <aside class="side" aria-label="Сущность и консоль">
           <section class="card surface settings" aria-labelledby="controls-title">
@@ -65,6 +80,10 @@
               <option value="">Выберите сущность</option>
             </select>
             <p id="agent-details">Выберите сущность для просмотра её состояния.</p>
+            <details id="ancestry" hidden>
+              <summary>Родословная</summary>
+              <ul id="ancestors"></ul>
+            </details>
           </section>
           <section class="card surface console" aria-labelledby="console-title">
             <div class="panel-header">
