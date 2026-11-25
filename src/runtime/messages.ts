@@ -21,7 +21,7 @@ export type Command =
   | { type: 'running'; value: boolean }
   | { type: 'visibility'; visible: boolean }
   | { type: 'restart'; seed: number; supply: FoodSupply }
-  | { type: 'place'; tool: Kind | 'food' | 'obstacle'; point: Point }
+  | { type: 'place'; tool: Kind | 'food' | 'obstacle' | 'cave'; point: Point }
   | { type: 'compare'; seed: number }
   | { type: 'clear' }
   | { type: 'ack' }

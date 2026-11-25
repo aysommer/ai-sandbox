@@ -11,6 +11,7 @@ const instructions = {
   forager: 'Нажмите на карту, чтобы разместить собирателя',
   hunter: 'Нажмите на карту, чтобы разместить хищника',
   food: 'Нажмите на карту, чтобы разместить пищу',
+  cave: 'Нажмите на карту, чтобы разместить пещеру на три места',
   obstacle: 'Нажмите на карту, чтобы разместить препятствие',
 }
 type Tool = keyof typeof instructions
@@ -136,8 +137,7 @@ export class Sandbox {
   private place(point: Point) {
     if (!this.world) return
     if (this.tool === 'select') {
-      this.select(this.world.agents.findLast(agent =>
-        Math.hypot(point.x - agent.x, point.y - agent.y) <= agent.radius + 5)?.id)
+      this.select(this.map.agentAt(this.world, point))
     } else {
       this.worker.send({ type: 'place', tool: this.tool, point })
     }

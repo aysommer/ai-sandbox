@@ -28,7 +28,7 @@ export class SelectionPanel {
     this.inspector.update(agent)
     const value = agent ? String(agent.id) : ''
     if (this.select.value !== value) this.select.value = value
-    const description = agent ? `${names[agent.kind]} #${agent.id} · энергия ${Math.ceil(agent.energy)}% · поколение ${agent.generation}`
+    const description = agent ? `${names[agent.kind]} #${agent.id} · энергия ${Math.ceil(agent.energy)}% · поколение ${agent.generation}${agent.shelter ? ' · в пещере №' + agent.shelter.caveId : ''}`
       : 'Выберите сущность для просмотра её состояния.'
     if (this.details.textContent !== description) this.details.textContent = description
     if (this.shownAncestry !== agent?.id) this.renderAncestry(world, agent?.id)

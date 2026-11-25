@@ -106,6 +106,10 @@ class SimulationWorker {
     const { point, tool } = command
     const world = this.world!
     const unavailable = 'Размещение здесь недоступно или достигнут лимит'
+    if (tool === 'cave') {
+      this.record(world.addCave(point) ? 'Добавлена пещера · 3 места' : unavailable, 'shelter', [])
+      return
+    }
     if (tool === 'food' || tool === 'obstacle') {
       const placed = tool === 'food' ? world.addFood(point) : world.addObstacle(point)
       this.record(placed ? (tool === 'food' ? 'Добавлена пища' : 'Добавлено препятствие') : unavailable, 'world', [])

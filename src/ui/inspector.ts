@@ -82,6 +82,12 @@ export class AgentInspector {
       this.renderList(this.mutationList, changes.length ? changes : [mutations ? 'Мутаций в этом геноме нет' : 'Геном основателя'])
     }
 
+    if (agent.shelterDecision) {
+      const { seconds, action, outcome } = agent.shelterDecision
+      this.decisionData.hidden = true
+      this.text(this.decisionResult, `${this.format(seconds)} с · Правило укрытия: ${action.toLowerCase()}. ${outcome}.`)
+      return
+    }
     const snapshot = agent.decision
     this.decisionData.hidden = !snapshot
     if (!snapshot) {

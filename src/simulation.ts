@@ -4,6 +4,7 @@ import { InnovationRegistry, type Genome, type InnovationSnapshot } from './neat
 import { NeuralNetwork } from './neat/network.ts'
 import { MutationDiff } from './neat/mutations.ts'
 import { Speciation } from './neat/species.ts'
+import { CaveNavigator, CaveRules, type Cave, type ShelterRoute } from './world/caves.ts'
 
 export const width = 800
 export const height = 500
@@ -21,6 +22,10 @@ export type Agent = Point & {
   genome: Genome
   activate: ReturnType<typeof NeuralNetwork.compileNetwork>
   decision?: Decision
+  shelter?: { caveId: number; since: number }
+  shelterRoute?: ShelterRoute
+  shelterRetryAt?: number
+  shelterDecision?: { seconds: number; action: string; outcome: string }
   mutations?: ReturnType<typeof MutationDiff.describeMutations>
 }
 export type Decision = {
@@ -32,7 +37,7 @@ export type Decision = {
   outcome: string
   energyDelta: number
 }
-export type EventType = 'world' | 'birth' | 'food' | 'absorption' | 'death'
+export type EventType = 'world' | 'birth' | 'food' | 'absorption' | 'death' | 'shelter'
 export type Report = (message: string, type: EventType, participants: readonly number[]) => void
 type Lineage = {
   id: number
@@ -54,9 +59,11 @@ export type WorldView = {
   agents: AgentView[]
   food: Point[]
   obstacles: Obstacle[]
+  caves: Cave[]
   lineage: Map<number, Lineage>
 }
-export type WorldSnapshot = WorldView & {
+export type WorldSnapshot = Omit<WorldView, 'caves'> & {
+  caves?: Cave[]
   nextId: number
   environmentSeed: number
   behaviorSeed: number
@@ -87,6 +94,7 @@ export class World {
   agents: Agent[] = []
   food: Point[] = []
   obstacles: Obstacle[] = []
+  caves: Cave[] = []
   seconds = 0
   private nextId = 1
   readonly lineage = new Map<number, Lineage>()
@@ -113,6 +121,8 @@ export class World {
       { x: 440, y: 275, width: 34, height: 105 },
       { x: 570, y: 100, width: 70, height: 24 },
     ]
+    this.addCave({ x: 300, y: 220 })
+    this.addCave({ x: 625, y: 296 })
     this.spawn({ x: 135, y: 170 }, 'forager')
     this.spawn({ x: 325, y: 365 }, 'forager')
     this.spawn({ x: 400, y: 175 }, 'forager')
@@ -129,6 +139,7 @@ export class World {
     world.agents = snapshot.agents.map(agent => ({ ...agent, activate: NeuralNetwork.compileNetwork(agent.genome) }))
     world.food = snapshot.food
     world.obstacles = snapshot.obstacles
+    world.caves = snapshot.caves ?? []
     world.seconds = snapshot.seconds
     world.nextId = snapshot.nextId
     world.environmentSeed = snapshot.environmentSeed
@@ -146,7 +157,7 @@ export class World {
     return {
       seed: this.seed, supply: this.supply, seconds: this.seconds,
       agents: this.agents.map(({ activate, ...agent }) => agent),
-      food: this.food, obstacles: this.obstacles, lineage: this.lineage,
+      food: this.food, obstacles: this.obstacles, caves: this.caves, lineage: this.lineage,
     }
   }
 
@@ -176,11 +187,11 @@ export class World {
   spawn(point: Point, kind: Kind, parent?: Agent) {
     const radius = kind === 'hunter' ? 13 : 9
     if (this.agents.length >= 120 || !this.free(point, radius) ||
-      this.agents.some(agent => Geometry.distance(agent, point) < agent.radius + radius)) return
+      this.agents.some(agent => !agent.shelter && Geometry.distance(agent, point) < agent.radius + radius)) return
     /** Samples the world’s genetic random stream. */
     const random = () => this.random('geneticsSeed')
     const mate = parent && random() < .3 ? this.nearest(parent, this.agents, 90, candidate =>
-      candidate !== parent && candidate.kind === parent.kind && candidate.energy >= 55 &&
+      candidate !== parent && !candidate.shelter && candidate.kind === parent.kind && candidate.energy >= 55 &&
       Speciation.compatibilityDistance(parent.genome, candidate.genome) < 3,
     ) : undefined
     const inherited = parent && mate ? NeatEvolution.crossover(
@@ -220,8 +231,17 @@ export class World {
       box.x + box.width > other.x && box.y < other.y + other.height &&
       box.y + box.height > other.y)) return false
     if (this.agents.some(agent => Geometry.obstacleDistance(agent, box) <= agent.radius) ||
-      this.food.some(food => Geometry.obstacleDistance(food, box) <= 4)) return false
+      this.food.some(food => Geometry.obstacleDistance(food, box) <= 4) ||
+      this.caves.some(cave => Geometry.obstacleDistance(cave, box) <= CaveRules.entryClearance)) return false
     this.obstacles.push(box)
+    return true
+  }
+
+  /** Adds an entrance with enough clearance for a forager to enter and leave. */
+  addCave(point: Point) {
+    if (this.caves.length >= CaveRules.maximum || !this.free(point, CaveRules.entryClearance) ||
+      this.caves.some(cave => Geometry.distance(cave, point) < 40)) return false
+    this.caves.push({ ...point, id: this.caves.length + 1, capacity: CaveRules.capacity })
     return true
   }
 
@@ -281,16 +301,19 @@ export class World {
   private advanceAgent(agent: Agent, dt: number) {
     if (agent.energy <= 0) return
     const hunts = agent.kind === 'hunter'
-    agent.energy -= dt * (hunts ? 2.25 : 1.45)
+    agent.energy -= dt * (agent.shelter ? .85 : hunts ? 2.25 : 1.45)
     agent.cooldown -= dt
     if (agent.energy <= 0) {
       this.report(`#${agent.id} погиб от истощения`, 'death', [agent.id])
       return
     }
+    agent.shelterDecision = undefined
+    if (!hunts && this.advanceShelter(agent, dt)) return
+
     const threat = hunts ? undefined : this.nearest(agent, this.agents, 77,
       item => item.kind === 'hunter' && item.energy > 0)
     const prey = hunts ? this.nearest(agent, this.agents, 235,
-      item => item.kind === 'forager' && item.energy > 0) : undefined
+      item => item.kind === 'forager' && item.energy > 0 && !item.shelter) : undefined
     const meal = hunts ? undefined : this.nearest(agent, this.food, 140, () => true)
     const target = prey ?? meal
     const fertile = agent.energy >= 91 && agent.cooldown <= 0
@@ -334,6 +357,92 @@ export class World {
 
     if (action === 3) outcome = this.reproduce(agent) ?? outcome
     agent.decision = { seconds: this.seconds, inputs, scores, available, action, outcome, energyDelta: agent.energy - energyBeforeAction }
+  }
+
+  /** Maintains a hiding occupant or moves a threatened forager toward a free entrance. */
+  private advanceShelter(agent: Agent, dt: number) {
+    if (agent.shelter) {
+      this.waitInShelter(agent, agent.shelter)
+      return true
+    }
+    if (!this.caves.length) return false
+    const eligible = agent.energy > CaveRules.exitEnergy + 4 && (agent.shelterRetryAt ?? 0) <= this.seconds
+    if (!eligible) {
+      agent.shelterRoute = undefined
+      return false
+    }
+    const route = agent.shelterRoute
+    const destination = route && this.caves.find(cave => cave.id === route.caveId)
+    if (!route || !destination || route.obstacles !== this.obstacles.length ||
+      CaveRules.occupants(destination, this.agents) >= destination.capacity) {
+      agent.shelterRoute = undefined
+      if (!route && !this.nearest(agent, this.agents, CaveRules.triggerRange,
+        item => item.kind === 'hunter' && item.energy > 0)) return false
+      agent.shelterRoute = this.findShelterRoute(agent)
+      if (!agent.shelterRoute) {
+        agent.shelterRetryAt = this.seconds + .5
+        return false
+      }
+    }
+    return !!agent.shelterRoute && this.followShelterRoute(agent, agent.shelterRoute, dt)
+  }
+
+  /** Moves exactly toward the next waypoint and occupies the cave at the entrance. */
+  private followShelterRoute(agent: Agent, route: ShelterRoute, dt: number) {
+    const cave = this.caves.find(cave => cave.id === route.caveId)!
+    const next = route.points[0]
+    const distance = Geometry.distance(agent, next)
+    const fraction = distance === 0 ? 1 : Math.min(1, 67 * dt / distance)
+    const point = { x: agent.x + (next.x - agent.x) * fraction, y: agent.y + (next.y - agent.y) * fraction }
+    if (!this.free(point, agent.radius)) {
+      agent.shelterRoute = undefined
+      agent.shelterRetryAt = this.seconds + .5
+      return false
+    }
+    if (distance > 0) agent.heading = Math.atan2(next.y - agent.y, next.x - agent.x)
+    Object.assign(agent, point)
+    if (fraction === 1) route.points.shift()
+    if (route.points.length) {
+      this.shelterDecision(agent, 'Бежать к укрытию', `Движется к пещере №${cave.id}`)
+    } else {
+      agent.shelterRoute = undefined
+      agent.shelter = { caveId: cave.id, since: this.seconds }
+      this.shelterDecision(agent, 'Спрятаться', `Укрылся в пещере №${cave.id}`)
+      this.report(`#${agent.id} спрятался в пещере №${cave.id}`, 'shelter', [agent.id])
+    }
+    return true
+  }
+
+  /** Keeps an occupant hidden until the entrance is safe or energy runs low. */
+  private waitInShelter(agent: Agent, shelter: NonNullable<Agent['shelter']>) {
+    const danger = !!this.nearest(agent, this.agents, 90, item => item.kind === 'hunter' && item.energy > 0)
+    if (!CaveRules.shouldLeave(agent, shelter.since, this.seconds, danger)) {
+      this.shelterDecision(agent, 'Остаться в укрытии', danger ? 'Хищник всё ещё рядом' : 'Ждёт безопасного выхода')
+      return
+    }
+    agent.shelter = undefined
+    agent.shelterRetryAt = this.seconds + 3
+    const reason = agent.energy <= CaveRules.exitEnergy ? 'Пора искать пищу' : 'У входа больше нет хищника'
+    this.shelterDecision(agent, 'Выйти из укрытия', reason)
+    this.report(`#${agent.id} покинул пещеру №${shelter.caveId} · ${reason}`, 'shelter', [agent.id])
+  }
+
+  /** Tries nearby entrances in distance order and avoids entrances held by a predator. */
+  private findShelterRoute(agent: Agent): ShelterRoute | undefined {
+    const nearby = this.caves.map(cave => ({ cave, distance: Geometry.distance(cave, agent) }))
+      .filter(item => item.distance <= CaveRules.searchRange)
+      .sort((a, b) => a.distance - b.distance)
+    for (const { cave } of nearby) {
+      if (CaveRules.occupants(cave, this.agents) >= cave.capacity ||
+        this.nearest(cave, this.agents, 28, item => item.kind === 'hunter' && item.energy > 0)) continue
+      const points = CaveNavigator.route(agent, cave, width, height, point => this.free(point, agent.radius))
+      if (points) return { caveId: cave.id, obstacles: this.obstacles.length, points }
+    }
+  }
+
+  /** Records shelter behavior separately from NEAT scores. */
+  private shelterDecision(agent: Agent, action: string, outcome: string) {
+    agent.shelterDecision = { seconds: this.seconds, action, outcome }
   }
 
   /** Finds space for offspring, charges the parent and records the birth. */

@@ -1,4 +1,4 @@
-import { width, height, type Point, type WorldView } from '../simulation.ts'
+import { width, height, type AgentView, type Point, type WorldView } from '../simulation.ts'
 
 /** Owns the canvas, coordinate conversion and zoom controls. */
 export class WorldMap {
@@ -92,17 +92,49 @@ export class WorldMap {
       this.context.fill()
     }
     for (const food of world.food) this.circle(food, 3.5, '#83dfb2')
-    for (const agent of world.agents) {
-      if (agent.id === selected) this.circle(agent, agent.radius + 5, '#ffffff')
-      this.circle(agent, agent.radius, agent.kind === 'hunter' ? '#ffae82' : '#a8c7fa')
-      this.circle({
-        x: agent.x + Math.cos(agent.heading) * agent.radius * .6,
-        y: agent.y + Math.sin(agent.heading) * agent.radius * .6,
-      }, 2.4, '#243549')
-      this.context.fillStyle = '#f1f5ff'
-      this.context.textAlign = 'center'
-      this.context.font = '13px system-ui'
-      this.context.fillText('#' + agent.id, agent.x, agent.y + agent.radius + 15)
+    for (const cave of world.caves) {
+      this.circle(cave, 23, '#bca9ed')
+      this.circle({ x: cave.x, y: cave.y - 2 }, 17, '#332e48')
+      const occupants = world.agents.filter(agent => agent.shelter?.caveId === cave.id)
+      this.label(`Пещера №${cave.id} · ${occupants.length}/${cave.capacity}`, cave.x, cave.y + 37)
+      occupants.forEach((agent, index) => {
+        const center = { x: cave.x + (index - (occupants.length - 1) / 2) * 10, y: cave.y - 2 }
+        this.circle(center, agent.id === selected ? 5 : 3, agent.id === selected ? '#fff' : '#a8c7fa')
+      })
     }
+    for (const agent of world.agents) {
+      if (!agent.shelter) this.drawAgent(agent, selected)
+    }
+  }
+
+  /** Finds an exposed entity or an occupant at the rendered cave position. */
+  agentAt(world: WorldView, point: Point) {
+    const exposed = world.agents.findLast(agent => !agent.shelter &&
+      Math.hypot(point.x - agent.x, point.y - agent.y) <= agent.radius + 5)
+    if (exposed) return exposed.id
+    const cave = world.caves.find(cave => Math.hypot(point.x - cave.x, point.y - cave.y) <= 23)
+    if (!cave) return
+    const occupants = world.agents.filter(agent => agent.shelter?.caveId === cave.id)
+    const index = Math.round((point.x - cave.x) / 10 + (occupants.length - 1) / 2)
+    return occupants[Math.min(occupants.length - 1, Math.max(0, index))]?.id
+  }
+
+  /** Draws an exposed entity, its heading and selection ring. */
+  private drawAgent(agent: AgentView, selected?: number) {
+    if (agent.id === selected) this.circle(agent, agent.radius + 5, '#ffffff')
+    this.circle(agent, agent.radius, agent.kind === 'hunter' ? '#ffae82' : '#a8c7fa')
+    this.circle({
+      x: agent.x + Math.cos(agent.heading) * agent.radius * .6,
+      y: agent.y + Math.sin(agent.heading) * agent.radius * .6,
+    }, 2.4, '#243549')
+    this.label('#' + agent.id, agent.x, agent.y + agent.radius + 15)
+  }
+
+  /** Draws a centered label in world coordinates. */
+  private label(value: string, x: number, y: number) {
+    this.context.fillStyle = '#f1f5ff'
+    this.context.textAlign = 'center'
+    this.context.font = '13px system-ui'
+    this.context.fillText(value, x, y)
   }
 }

@@ -116,3 +116,5 @@ body { background: #f2f5fa; }
 .inspector-list { max-height: 10rem; overflow: auto; margin-top: .35rem; font-size: .875rem; color: #424d65; }
 .inspector-list li { padding-block: .15rem; }
 .event-filters { display: grid; gap: .35rem; margin: 0 1.2rem .8rem; font-size: .875rem; }
+
+.cave { background: #7962b2; }

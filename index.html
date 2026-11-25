@@ -37,6 +37,7 @@
             <button class="btn btn-ghost" data-tool="forager" aria-pressed="false">Добавить собирателя</button>
             <button class="btn btn-ghost" data-tool="hunter" aria-pressed="false">Добавить хищника</button>
             <button class="btn btn-ghost" data-tool="food" aria-pressed="false">Добавить пищу</button>
+            <button class="btn btn-ghost" data-tool="cave" aria-pressed="false">Добавить пещеру</button>
             <button class="btn btn-ghost" data-tool="obstacle" aria-pressed="false">Добавить препятствие</button>
           </div>
           <button type="button" class="btn btn-ghost w-full" id="reset">Сбросить вид</button>
@@ -59,6 +60,7 @@
             <span><i class="dot hunter"></i>Хищник</span>
             <span><i class="dot food"></i>Пища</span>
             <span><i class="dot obstacle"></i>Препятствие</span>
+            <span><i class="dot cave"></i>Пещера</span>
           </div>
           <p class="world-stats" id="stats"></p>
           <p class="world-stats" id="storage-status">Загрузка сохранения…</p>
@@ -119,6 +121,7 @@
                 <option value="food">Питание</option>
                 <option value="absorption">Поглощения</option>
                 <option value="death">Истощение</option>
+                <option value="shelter">Укрытия</option>
               </select>
               <label for="event-agent">ID сущности</label>
               <input class="input w-full" id="event-agent" inputmode="numeric" placeholder="Например, 6">
