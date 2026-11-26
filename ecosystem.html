@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ru" data-theme="sandbox">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="2D-песочница для наблюдения за нейроэволюцией">
+    <title>AI Sandbox</title>
+  </head>
+  <body>
+    <header class="app-bar">
+      <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+      <h1>AI <strong>Sandbox</strong></h1>
+      <a class="btn btn-ghost repository" href="./">Город</a>
+    </header>
+    <main class="workspace mx-auto w-full">
+      <div class="page-heading">
+        <div>
+          <h2>Песочница</h2>
+          <p>Наблюдайте, как сущности выживают в меняющейся среде</p>
+        </div>
+        <div class="simulation-controls">
+          <span class="mode" id="status">Загрузка…</span>
+          <button type="button" class="btn btn-primary" id="run" disabled>Запустить</button>
+          <button type="button" class="btn btn-ghost" id="restart" disabled>Повторить старт</button>
+        </div>
+      </div>
+      <div class="dashboard">
+        <section class="card surface settings tools" aria-labelledby="tools-title">
+          <h3 id="tools-title">Инструменты мира</h3>
+          <label for="seed">Seed мира</label>
+          <input class="input w-full" type="number" id="seed" min="0" max="4294967295" step="1" value="267">
+          <label for="supply">Пополнение пищи при старте</label>
+          <select class="select w-full" id="supply"><option value="normal">Обычное</option><option value="scarce">Редкое</option></select>
+          <button class="btn btn-ghost" id="compare" disabled>Сравнить условия</button>
+          <div id="tools" role="group" aria-label="Инструменты карты">
+            <button class="btn btn-ghost" data-tool="select" aria-pressed="true">Выбрать</button>
+            <button class="btn btn-ghost" data-tool="forager" aria-pressed="false">Добавить собирателя</button>
+            <button class="btn btn-ghost" data-tool="hunter" aria-pressed="false">Добавить хищника</button>
+            <button class="btn btn-ghost" data-tool="food" aria-pressed="false">Добавить пищу</button>
+            <button class="btn btn-ghost" data-tool="cave" aria-pressed="false">Добавить пещеру</button>
+            <button class="btn btn-ghost" data-tool="obstacle" aria-pressed="false">Добавить препятствие</button>
+          </div>
+          <button type="button" class="btn btn-ghost w-full" id="reset">Сбросить вид</button>
+        </section>
+        <section class="card surface world" aria-labelledby="map-title">
+          <div class="panel-header">
+            <div><h3 id="map-title">Карта мира</h3><p id="map-help">Выберите сущность на карте</p></div>
+            <div class="map-controls" aria-label="Управление картой">
+              <button type="button" class="btn btn-ghost" id="zoom-out" aria-label="Уменьшить масштаб">−</button>
+              <output id="zoom-value" aria-label="Масштаб">100%</output>
+              <button type="button" class="btn btn-ghost" id="zoom-in" aria-label="Увеличить масштаб">+</button>
+            </div>
+          </div>
+          <div class="map">
+            <canvas id="world" aria-label="Карта симуляции"></canvas>
+
+          </div>
+          <div class="legend" aria-label="Легенда карты">
+            <span><i class="dot entity"></i>Собиратель</span>
+            <span><i class="dot hunter"></i>Хищник</span>
+            <span><i class="dot food"></i>Пища</span>
+            <span><i class="dot obstacle"></i>Препятствие</span>
+            <span><i class="dot cave"></i>Пещера</span>
+          </div>
+          <p class="world-stats" id="stats"></p>
+          <p class="world-stats" id="storage-status">Загрузка сохранения…</p>
+          <section id="experiment" class="experiment" hidden aria-labelledby="experiment-title">
+            <h3 id="experiment-title">Сравнение поколений</h3>
+            <p id="experiment-description" role="status"></p>
+            <div class="overflow-x-auto">
+              <table class="table table-sm">
+                <thead><tr><th>Поколение</th><th>Пополнение пищи</th><th>Появилось</th><th>Выжило</th><th>Поглощений</th></tr></thead>
+                <tbody id="experiment-rows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+        <aside class="side" aria-label="Сущность и консоль">
+          <section class="card surface settings" aria-labelledby="controls-title">
+            <h3 id="controls-title">Сущность</h3>
+            <label class="sr-only" for="selected-agent">Выбранная сущность</label>
+            <select id="selected-agent" class="select select-bordered w-full">
+              <option value="">Выберите сущность</option>
+            </select>
+            <p id="agent-details">Выберите сущность для просмотра её состояния.</p>
+            <details id="decision" open hidden>
+              <summary>Последнее решение</summary>
+              <p id="decision-result"></p>
+              <div id="decision-data" hidden>
+                <h4>Входные сигналы</h4>
+                <dl id="decision-inputs" class="inspector-values"></dl>
+                <h4>Оценки действий</h4>
+                <dl id="decision-scores" class="inspector-values"></dl>
+              </div>
+            </details>
+            <details id="genome" hidden>
+              <summary>Геном и мутации</summary>
+              <h4>Узлы</h4>
+              <ul id="genome-nodes" class="inspector-list"></ul>
+              <h4>Связи</h4>
+              <ul id="genome-edges" class="inspector-list"></ul>
+              <h4>Мутации при рождении</h4>
+              <ul id="mutations" class="inspector-list"></ul>
+            </details>
+            <details id="ancestry" hidden>
+              <summary>Родословная</summary>
+              <ul id="ancestors"></ul>
+            </details>
+          </section>
+          <section class="card surface console" aria-labelledby="console-title">
+            <div class="panel-header">
+              <div><h3 id="console-title">Консоль</h3><p>События мира</p></div>
+              <button type="button" class="btn btn-ghost" id="clear">Очистить</button>
+            </div>
+            <div class="event-filters">
+              <label for="event-type">Тип события</label>
+              <select class="select w-full" id="event-type">
+                <option value="">Все события</option>
+                <option value="world">Мир</option>
+                <option value="birth">Рождения</option>
+                <option value="food">Питание</option>
+                <option value="absorption">Поглощения</option>
+                <option value="death">Истощение</option>
+                <option value="shelter">Укрытия</option>
+              </select>
+              <label for="event-agent">ID сущности</label>
+              <input class="input w-full" id="event-agent" inputmode="numeric" placeholder="Например, 6">
+            </div>
+            <ol id="events" aria-label="Журнал событий" aria-live="polite" aria-relevant="additions"></ol>
+            <p id="empty-events" hidden>Журнал пуст</p>
+          </section>
+        </aside>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

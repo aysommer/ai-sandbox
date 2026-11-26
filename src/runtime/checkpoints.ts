@@ -1,7 +1,7 @@
 import type { Checkpoint } from './messages.ts'
 
 /** Stores one atomic, versioned checkpoint per tab session. */
-export class CheckpointStore {
+export class CheckpointStore<T = Checkpoint> {
   private readonly database: Promise<IDBDatabase>
 
   /** Opens the database and creates the checkpoint store when needed. */
@@ -16,7 +16,7 @@ export class CheckpointStore {
   }
 
   /** Loads the snapshot committed for this tab session. */
-  async load(): Promise<Checkpoint | undefined> {
+  async load(): Promise<T | undefined> {
     const database = await this.database
     return new Promise((resolve, reject) => {
       const request = database.transaction('checkpoints').objectStore('checkpoints').get(this.key)
@@ -26,7 +26,7 @@ export class CheckpointStore {
   }
 
   /** Writes a full checkpoint and resolves only after the transaction commits. */
-  async save(checkpoint: Checkpoint) {
+  async save(checkpoint: T) {
     const database = await this.database
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction('checkpoints', 'readwrite')
