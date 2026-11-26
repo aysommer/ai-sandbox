@@ -1,6 +1,7 @@
 import '../style.css'
 import './style.css'
 import { CityMap } from './map.ts'
+import { EconomyPanel } from './economy-panel.ts'
 import { CityPanels } from './panels.ts'
 import { CityTime, minutesPerDay } from './districts.ts'
 import type { CityCommand, CityFrame } from './protocol.ts'
@@ -13,6 +14,7 @@ class CityApp {
   private readonly step = document.querySelector<HTMLButtonElement>('#city-step')!
   private readonly speed = document.querySelector<HTMLSelectElement>('#city-speed')!
   private readonly status = document.querySelector('#city-status')!
+  private readonly economy = new EconomyPanel()
   private readonly panels = new CityPanels(id => this.select(id))
   private readonly map = new CityMap(id => this.select(id))
   private worker?: Worker
@@ -79,6 +81,7 @@ class CityApp {
     if (!this.frame || document.hidden) return
     this.map.render(this.frame.state, this.selected)
     this.panels.render(this.frame.state, this.selected)
+    this.economy.render(this.frame.state.economy)
   }
 }
 

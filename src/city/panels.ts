@@ -1,4 +1,5 @@
 import { buildings, CityTime, profiles } from './districts.ts'
+import { CoinLedger } from './economy.ts'
 import type { Activity, CityState, ResidentState } from './simulation.ts'
 
 const activities: Record<Activity, string> = {
@@ -46,7 +47,7 @@ export class CityPanels {
   render(state: CityState, selected?: number) {
     for (const [id, button] of this.buttons) button.setAttribute('aria-pressed', String(id === selected))
     const resident = state.residents.find(resident => resident.id === selected)
-    if (resident) this.showResident(resident)
+    if (resident) this.showResident(resident, state.economy.balances[CoinLedger.wallet(resident.id)])
     const last = state.events.at(-1)
     const key = last && [last.minute, last.resident, last.activity].join('/')
     if (this.previousEvent === key) return
@@ -65,13 +66,15 @@ export class CityPanels {
   }
 
   /** Displays the resident’s workplace, shift and current activity. */
-  private showResident(resident: ResidentState) {
+  private showResident(resident: ResidentState, balance: number) {
     const profile = profiles[resident.id - 1]
     const rows = {
       'Имя': profile.name,
       'Роль': profile.role,
+      'Кошелёк': balance + ' мон.',
       'Работа': profile.job.title,
       'Место': buildings[profile.job.building].label,
+      'Оплата смены': profile.job.wage + ' мон.',
       'Смена': CityTime.format(profile.job.start) + ' – ' + CityTime.format(profile.job.end),
       'Статус': activities[resident.activity],
       'На смене сегодня': resident.worked + ' мин',

@@ -19,3 +19,14 @@
   .city-residents { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .city .world { grid-row: 1; }
 }
+
+.city-economy { border-top: 1px solid #dfe7ed; padding: 1rem 1.2rem; }
+.city-economy-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: .4rem 1rem; }
+.city-economy-heading p, #city-stock, #city-payments-empty { color: #4c5466; font-size: .875rem; }
+.city-accounts { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: .5rem; margin-block: .75rem; }
+.city-accounts div { background: #edf2f8; border-radius: .65rem; padding: .4rem .65rem; font-size: .875rem; }
+.city-accounts dd { font-weight: 650; font-variant-numeric: tabular-nums; }
+.city-economy h4 { font-size: .95rem; font-weight: 650; margin-block: .75rem .25rem; }
+#city-payments { max-height: 16rem; overflow: auto; font-size: .875rem; }
+#city-payments li { display: grid; grid-template-columns: minmax(5rem, 6rem) minmax(0, 1fr); gap: .45rem; border-top: 1px solid #e9ebf7; padding: .45rem 0; }
+#city-payments time, #city-payments p { color: #4c5466; }

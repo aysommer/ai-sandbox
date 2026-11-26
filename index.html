@@ -33,6 +33,17 @@
           </div>
           <div class="city-map"><canvas id="city-map" aria-label="Карта двух районов с рабочими местами"></canvas></div>
           <p id="city-status" class="world-stats" role="status">Загрузка города…</p>
+          <section class="city-economy" aria-labelledby="city-economy-title">
+            <div class="city-economy-heading">
+              <h3 id="city-economy-title">Экономика города</h3>
+              <p id="city-coin-total"></p>
+            </div>
+            <dl id="city-accounts" class="city-accounts" aria-label="Казна и кассы предприятий"></dl>
+            <p id="city-stock"></p>
+            <h4>Журнал переводов</h4>
+            <p id="city-payments-empty">Переводов пока нет.</p>
+            <ol id="city-payments" aria-label="Последние платежи"></ol>
+          </section>
         </section>
         <aside class="side">
           <section class="card surface settings" aria-labelledby="citizen-title">

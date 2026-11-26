@@ -1,7 +1,7 @@
 export type Point = { x: number; y: number }
 export type BuildingId = 'north-home' | 'south-home' | 'police' | 'office' | 'cafe' | 'restaurant' | 'garage' | 'station' | 'stockroom'
 export type Building = { id: BuildingId; label: string; door: Point; road: number; accent: string }
-export type Job = { building: BuildingId; title: string; start: number; end: number }
+export type Job = { building: Exclude<BuildingId, 'north-home' | 'south-home'>; title: string; start: number; end: number; wage: number }
 export type ResidentProfile = { id: number; name: string; role: string; color: string; home: BuildingId; job: Job }
 
 export const mapWidth = 980
@@ -22,14 +22,14 @@ export const buildings: Record<BuildingId, Building> = {
 }
 
 export const profiles: readonly ResidentProfile[] = [
-  { id: 1, name: 'Ирина', role: 'Полицейский', color: '#345fac', home: 'south-home', job: { building: 'police', title: 'Дежурство', start: 480, end: 960 } },
-  { id: 2, name: 'Максим', role: 'Вор', color: '#74528c', home: 'north-home', job: { building: 'stockroom', title: 'Подработка на складе', start: 630, end: 870 } },
-  { id: 3, name: 'Алия', role: 'Программист', color: '#4f4b9d', home: 'south-home', job: { building: 'office', title: 'Разработка ПО', start: 540, end: 1020 } },
-  { id: 4, name: 'Лена', role: 'Бариста', color: '#926143', home: 'north-home', job: { building: 'cafe', title: 'Работа в кофейне', start: 450, end: 930 } },
-  { id: 5, name: 'Сергей', role: 'Автомеханик', color: '#59616d', home: 'north-home', job: { building: 'garage', title: 'Смена в мастерской', start: 510, end: 990 } },
-  { id: 6, name: 'Олег', role: 'Машинист', color: '#327482', home: 'north-home', job: { building: 'station', title: 'Смена на станции', start: 470, end: 950 } },
-  { id: 7, name: 'Ника', role: 'Официант', color: '#a25046', home: 'south-home', job: { building: 'restaurant', title: 'Обслуживание гостей', start: 660, end: 1140 } },
-  { id: 8, name: 'Денис', role: 'Повар', color: '#866825', home: 'south-home', job: { building: 'restaurant', title: 'Смена на кухне', start: 600, end: 1080 } },
+  { id: 1, name: 'Ирина', role: 'Полицейский', color: '#345fac', home: 'south-home', job: { building: 'police', title: 'Дежурство', start: 480, end: 960, wage: 18 } },
+  { id: 2, name: 'Максим', role: 'Вор', color: '#74528c', home: 'north-home', job: { building: 'stockroom', title: 'Подработка на складе', start: 630, end: 870, wage: 9 } },
+  { id: 3, name: 'Алия', role: 'Программист', color: '#4f4b9d', home: 'south-home', job: { building: 'office', title: 'Разработка ПО', start: 540, end: 1020, wage: 20 } },
+  { id: 4, name: 'Лена', role: 'Бариста', color: '#926143', home: 'north-home', job: { building: 'cafe', title: 'Работа в кофейне', start: 450, end: 930, wage: 12 } },
+  { id: 5, name: 'Сергей', role: 'Автомеханик', color: '#59616d', home: 'north-home', job: { building: 'garage', title: 'Смена в мастерской', start: 510, end: 990, wage: 15 } },
+  { id: 6, name: 'Олег', role: 'Машинист', color: '#327482', home: 'north-home', job: { building: 'station', title: 'Смена на станции', start: 470, end: 950, wage: 16 } },
+  { id: 7, name: 'Ника', role: 'Официант', color: '#a25046', home: 'south-home', job: { building: 'restaurant', title: 'Обслуживание гостей', start: 660, end: 1140, wage: 11 } },
+  { id: 8, name: 'Денис', role: 'Повар', color: '#866825', home: 'south-home', job: { building: 'restaurant', title: 'Смена на кухне', start: 600, end: 1080, wage: 15 } },
 ]
 
 /** Formats an absolute city time or shift boundary as local clock hours and minutes. */

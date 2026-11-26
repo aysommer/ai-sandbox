@@ -1,23 +1,28 @@
 import { buildings, minutesPerDay, profiles, StreetNetwork, type Point, type ResidentProfile } from './districts.ts'
+import { CityEconomy, type EconomyState } from './economy.ts'
 
 export type Activity = 'home' | 'commute' | 'work' | 'return'
 export type ResidentState = { id: number; activity: Activity; position: Point; worked: number; remaining: Point[] }
 export type CityEvent = { minute: number; resident: number; activity: Activity }
-export type CityState = { minute: number; residents: ResidentState[]; events: CityEvent[] }
+export type CityState = { minute: number; residents: ResidentState[]; events: CityEvent[]; economy: EconomyState }
+export type SavedCityState = Omit<CityState, 'economy'> & { economy?: EconomyState }
 const walkingSpeed = 26
+const orderTimes = { cafe: 10 * 60, restaurant: 12 * 60 } as const
 
 /** Runs the same daily schedule for all residents, creating observable city events. */
 export class CitySimulation {
   private readonly state: CityState
 
   /** Starts a city at 07:00 or restores an existing state. */
-  constructor(saved?: CityState) {
-    this.state = saved ? structuredClone(saved) : {
+  constructor(saved?: SavedCityState) {
+    const restored = saved && structuredClone(saved)
+    this.state = restored ? { ...restored, economy: restored.economy ?? CityEconomy.start() } : {
       minute: 420,
       residents: profiles.map(profile => ({
         id: profile.id, activity: 'home', position: { ...buildings[profile.home].door }, remaining: [], worked: 0,
       })),
       events: [],
+      economy: CityEconomy.start(),
     }
   }
 
@@ -34,6 +39,7 @@ export class CitySimulation {
       for (const [index, resident] of this.state.residents.entries()) {
         this.advanceResident(resident, profiles[index], time)
       }
+      this.trade(time)
     }
   }
 
@@ -53,6 +59,7 @@ export class CitySimulation {
     if (resident.activity === 'work') {
       resident.worked++
       if (time < job.end) return
+      CityEconomy.payShift(this.state.economy, this.state.minute, resident.id, resident.worked)
       resident.remaining = StreetNetwork.route(buildings[job.building], buildings[profile.home])
       this.change(resident, 'return')
       return
@@ -60,6 +67,22 @@ export class CitySimulation {
 
     this.walk(resident)
     if (!resident.remaining.length) this.change(resident, resident.activity === 'commute' ? 'work' : 'home')
+  }
+
+  /** Runs scheduled orders while the venue is staffed and replenishes its stock daily. */
+  private trade(time: number) {
+    const { economy, minute, residents } = this.state
+    if (time === 8 * 60) {
+      CityEconomy.restock(economy, 'cafe', minute)
+      CityEconomy.restock(economy, 'restaurant', minute)
+    }
+    for (const merchant of ['cafe', 'restaurant'] as const) {
+      const customer = profiles[time - orderTimes[merchant]]
+      if (!customer) continue
+      const canSell = profiles.every((profile, index) =>
+        profile.job.building !== merchant || residents[index].activity === 'work')
+      if (canSell) CityEconomy.sell(economy, merchant, minute, customer.id)
+    }
   }
 
   /** Walks a minute along the route, stopping precisely at the final entrance. */
